@@ -21,20 +21,18 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-6">
-          <h1 className="text-xl font-bold text-emerald-700 flex items-center gap-2">
-            <span>🧸</span> ניהול משמרות - גן ילדים
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <h1 className="text-base sm:text-xl font-bold text-emerald-700 flex items-center gap-2">
+            <span>🧸</span> <span className="whitespace-nowrap">ניהול משמרות - גן ילדים</span>
           </h1>
-          <nav className="flex gap-1">
+          <nav className="flex flex-wrap gap-1 order-last w-full sm:order-none sm:w-auto">
             {navItems.map((n) => (
               <NavLink
                 key={n.to}
                 to={n.to}
                 className={({ isActive }) =>
-                  `px-3 py-1.5 rounded-lg text-sm font-medium transition ${
-                    isActive
-                      ? "bg-emerald-600 text-white"
-                      : "text-slate-600 hover:bg-slate-100"
+                  `px-2.5 sm:px-3 py-1.5 rounded-lg text-sm font-medium transition ${
+                    isActive ? "bg-emerald-600 text-white" : "text-slate-600 hover:bg-slate-100"
                   }`
                 }
               >
@@ -42,8 +40,7 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
-          <div className="flex-1" />
-          <button onClick={() => auth.logout()} className="text-sm text-slate-500 hover:text-slate-700">
+          <button onClick={() => auth.logout()} className="text-sm text-slate-500 hover:text-slate-700 ms-auto">
             יציאה
           </button>
         </div>

@@ -121,8 +121,8 @@ function ChangeLog({
           נקה הכל
         </button>
       </div>
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+        <table className="w-full text-sm min-w-[520px]">
           <thead className="bg-slate-50 text-slate-600">
             <tr>
               <th className="px-3 py-2">

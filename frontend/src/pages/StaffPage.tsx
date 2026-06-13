@@ -67,8 +67,8 @@ export default function StaffPage() {
           עדיין אין נשות צוות. לחצי על "הוספת אשת צוות" כדי להתחיל.
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
+          <table className="w-full text-sm min-w-[480px]">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
                 <th className="text-right px-4 py-2 font-medium">שם</th>
