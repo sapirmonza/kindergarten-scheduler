@@ -1,0 +1,36 @@
+# LOCAL Dockerfile (corporate network) — used by docker-compose only.
+# Pulls the base image from the internal artifactory registry and installs npm packages
+# through the developer's ~/.npmrc (mounted as a build secret). Not used in the cloud.
+
+# ---------- Stage 1: build frontend ----------
+FROM artifactory.d3v0ps.com:5059/node:22-bookworm-slim AS frontend
+WORKDIR /app/frontend
+COPY frontend/package.json frontend/package-lock.json* ./
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm install
+COPY frontend/ ./
+RUN npm run build
+
+# ---------- Stage 2: build backend ----------
+FROM artifactory.d3v0ps.com:5059/node:22-bookworm-slim AS backend
+WORKDIR /app/backend
+COPY backend/package.json backend/package-lock.json* ./
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm install
+COPY backend/ ./
+RUN npm run build
+
+# ---------- Stage 3: runtime ----------
+FROM artifactory.d3v0ps.com:5059/node:22-bookworm-slim AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3100
+ENV DATA_DIR=/app/data
+
+COPY backend/package.json backend/package-lock.json* ./
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc npm install --omit=dev
+
+COPY --from=backend /app/backend/dist ./dist
+COPY --from=frontend /app/frontend/dist ./public
+
+EXPOSE 3100
+VOLUME ["/app/data"]
+CMD ["node", "--experimental-sqlite", "dist/index.js"]
