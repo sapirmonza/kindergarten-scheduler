@@ -1,0 +1,22 @@
+services:
+  app:
+    build:
+      context: .
+      args:
+        # local builds use the internal registry; the cloud (Railway) uses the public default
+        NODE_IMAGE: artifactory.d3v0ps.com:5059/node:22-bookworm-slim
+      secrets:
+        - npmrc
+    container_name: kindergarten-scheduler
+    ports:
+      - "3100:3100"
+    volumes:
+      - scheduler-data:/app/data
+    restart: unless-stopped
+
+secrets:
+  npmrc:
+    file: ${USERPROFILE}/.npmrc
+
+volumes:
+  scheduler-data:

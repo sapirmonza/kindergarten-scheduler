@@ -1,0 +1,38 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* Print: show only the schedule, lay days out compactly, drop interactive chrome */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+  .print-area {
+    display: block !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .print-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 8px !important;
+  }
+  @page {
+    size: landscape;
+    margin: 1cm;
+  }
+}
+
+.print-only {
+  display: none;
+}
