@@ -118,11 +118,13 @@ export type DayCoverage = {
   closed: boolean;
   segments: CoverageSegment[];
 };
+export type DayNote = { id: number; date: string; text: string; color: string | null };
 export type WeekBundle = {
   week: Week;
   constraints: Constraint[];
   closures: Closure[];
   assignments: Assignment[];
+  notes: DayNote[];
   coverage: DayCoverage[];
 };
 export type Replacement = {
@@ -226,6 +228,11 @@ export const api = {
     http<{ id: number }>(`/api/weeks/${id}/closures`, { method: "POST", body: JSON.stringify(c) }),
   deleteClosure: (id: number, cid: number) =>
     http<{ ok: true }>(`/api/weeks/${id}/closures/${cid}`, { method: "DELETE" }),
+
+  addNote: (id: number, note: { date: string; text: string; color: string }) =>
+    http<{ id: number }>(`/api/weeks/${id}/notes`, { method: "POST", body: JSON.stringify(note) }),
+  deleteNote: (id: number, noteId: number) =>
+    http<{ ok: true }>(`/api/weeks/${id}/notes/${noteId}`, { method: "DELETE" }),
 
   addAssignment: (id: number, a: Partial<Assignment> & ChangeReason) =>
     http<{ id: number }>(`/api/weeks/${id}/assignments`, { method: "POST", body: JSON.stringify(a) }),

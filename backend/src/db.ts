@@ -137,8 +137,19 @@ export function ensureTables(): void {
       created_at      TEXT    NOT NULL DEFAULT (datetime('now'))
     );
 
+    -- Free-text colored notes pinned to a specific day of a week (survive schedule regeneration).
+    CREATE TABLE IF NOT EXISTS day_notes (
+      id         INTEGER PRIMARY KEY AUTOINCREMENT,
+      week_id    INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+      date       TEXT    NOT NULL,
+      text       TEXT    NOT NULL,
+      color      TEXT,                              -- background color (hex)
+      created_at TEXT    NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_avail_staff   ON staff_availability(staff_id);
     CREATE INDEX IF NOT EXISTS idx_changes_week  ON schedule_changes(week_id);
+    CREATE INDEX IF NOT EXISTS idx_notes_week    ON day_notes(week_id);
     CREATE INDEX IF NOT EXISTS idx_constr_week   ON constraints(week_id);
     CREATE INDEX IF NOT EXISTS idx_closure_week  ON closures(week_id);
     CREATE INDEX IF NOT EXISTS idx_assign_week   ON assignments(week_id);

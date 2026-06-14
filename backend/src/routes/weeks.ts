@@ -35,6 +35,7 @@ router.get("/:id", (req, res) => {
     closures: db.prepare("SELECT * FROM closures WHERE week_id=? ORDER BY date").all(id),
     assignments: db
       .prepare("SELECT * FROM assignments WHERE week_id=? ORDER BY date, start_time").all(id),
+    notes: db.prepare("SELECT * FROM day_notes WHERE week_id=? ORDER BY date, id").all(id),
     coverage: analyzeCoverage(id),
   });
 });
@@ -179,6 +180,20 @@ router.delete("/:id/assignments/:aid", (req, res) => {
     });
   }
   db.prepare("DELETE FROM assignments WHERE id=?").run(aid);
+  res.json({ ok: true });
+});
+
+// --- day notes (colored, survive regeneration) ---
+router.post("/:id/notes", (req, res) => {
+  const id = Number(req.params.id);
+  const b = req.body;
+  const info = db
+    .prepare("INSERT INTO day_notes (week_id, date, text, color) VALUES (?,?,?,?)")
+    .run(id, b.date, b.text, b.color || null);
+  res.json({ id: info.lastInsertRowid });
+});
+router.delete("/:id/notes/:noteId", (req, res) => {
+  db.prepare("DELETE FROM day_notes WHERE id=?").run(Number(req.params.noteId));
   res.json({ ok: true });
 });
 

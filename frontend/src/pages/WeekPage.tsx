@@ -684,6 +684,9 @@ function hhmmToMin(t: string): number {
   return h * 60 + m;
 }
 
+// preset background colors for day notes
+const NOTE_COLORS = ["#fde68a", "#fecaca", "#bbf7d0", "#bfdbfe", "#e9d5ff", "#fed7aa", "#f5d0fe"];
+
 function ScheduleGrid({
   bundle,
   staff,
@@ -701,6 +704,7 @@ function ScheduleGrid({
   const [filterId, setFilterId] = useState<number | null>(null);
   const [fillDate, setFillDate] = useState<string | null>(null);
   const [addingDate, setAddingDate] = useState<string | null>(null);
+  const [addingNote, setAddingNote] = useState<{ date: string; text: string; color: string } | null>(null);
   // promise-based reason prompt shown only after the week is locked/final.
   // 'remove' asks for a category (מחלה/חופשה/אחר); 'add' asks only for an optional note.
   const [reasonResolver, setReasonResolver] = useState<{
@@ -759,6 +763,20 @@ function ScheduleGrid({
 
   const byDate: Record<string, Assignment[]> = {};
   for (const a of bundle.assignments) (byDate[a.date] ||= []).push(a);
+
+  const notesByDate: Record<string, typeof bundle.notes> = {};
+  for (const n of bundle.notes) (notesByDate[n.date] ||= []).push(n);
+
+  async function saveNote() {
+    if (!addingNote || !addingNote.text.trim()) return;
+    await api.addNote(bundle.week.id, { date: addingNote.date, text: addingNote.text.trim(), color: addingNote.color });
+    setAddingNote(null);
+    onChange();
+  }
+  async function removeNote(noteId: number) {
+    await api.deleteNote(bundle.week.id, noteId);
+    onChange();
+  }
 
   function toggleExpand(date: string) {
     setExpanded((p) => {
@@ -833,18 +851,19 @@ function ScheduleGrid({
         </div>
       )}
 
-      {!hasSchedule ? (
-        <p className="text-slate-400 text-sm no-print">לחץ "ייצר לו\"ז" כדי לבנות את השיבוץ.</p>
-      ) : (
-        <>
-          {filterId === null && (
-            <p className="text-xs text-slate-500 mb-3 no-print">
-              לחץ על "משמרות" בכל יום כדי להציג/להסתיר את הרשימה · לחץ על שם כדי לראות את כל השבוע של אותה אשת צוות ·{" "}
-              <span className="font-bold text-teal-700">מנהלות מודגשות</span>
-            </p>
-          )}
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 print-grid">
-            {bundle.coverage.map((d) => {
+      {!hasSchedule && (
+        <p className="text-slate-500 text-sm mb-3 no-print">
+          אין לו"ז עדיין — אפשר להוסיף הערות לימים למטה, ולחץ "ייצר לו\"ז" לשיבוץ. ההערות לא נמחקות ביצירת לו"ז.
+        </p>
+      )}
+      {hasSchedule && filterId === null && (
+        <p className="text-xs text-slate-500 mb-3 no-print">
+          לחץ על "משמרות" בכל יום כדי להציג/להסתיר את הרשימה · לחץ על שם כדי לראות את כל השבוע של אותה אשת צוות ·{" "}
+          <span className="font-bold text-teal-700">מנהלות מודגשות</span>
+        </p>
+      )}
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3 print-grid">
+        {bundle.coverage.map((d) => {
               const dayShort = d.segments.reduce((s, x) => s + x.shortage, 0);
               const daySurplus = d.segments.reduce((s, x) => s + x.surplus, 0);
               const dayAssignments = (byDate[d.date] || [])
@@ -891,7 +910,7 @@ function ScheduleGrid({
                     <span className="text-xs font-medium">
                       {d.closed ? (
                         <span className="text-amber-700">סגור</span>
-                      ) : dayShort > 0 ? (
+                      ) : !hasSchedule ? null : dayShort > 0 ? (
                         <span className="text-red-600">חסר {dayShort}</span>
                       ) : daySurplus > 0 ? (
                         <span className="text-amber-600">עודף {daySurplus}</span>
@@ -901,7 +920,63 @@ function ScheduleGrid({
                     </span>
                   </div>
 
-                  {!d.closed && (
+                  {/* day notes — colored, survive schedule regeneration */}
+                  <div className="px-3 py-2 border-t border-slate-100 space-y-1">
+                    {(notesByDate[d.date] || []).map((n) => (
+                      <div
+                        key={n.id}
+                        style={{ background: n.color || NOTE_COLORS[0] }}
+                        className="rounded px-2 py-1 text-sm font-medium text-slate-800 flex items-start justify-between gap-2"
+                      >
+                        <span className="whitespace-pre-wrap break-words">{n.text}</span>
+                        <button
+                          onClick={() => removeNote(n.id)}
+                          className="text-slate-600 hover:text-red-700 text-xs no-print shrink-0"
+                          title="הסר הערה"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {addingNote?.date === d.date ? (
+                      <div className="no-print space-y-1">
+                        <input
+                          autoFocus
+                          value={addingNote.text}
+                          onChange={(e) => setAddingNote({ ...addingNote, text: e.target.value })}
+                          placeholder="טקסט ההערה"
+                          className="w-full border border-slate-300 rounded px-2 py-1 text-sm"
+                        />
+                        <div className="flex items-center gap-1">
+                          {NOTE_COLORS.map((c) => (
+                            <button
+                              key={c}
+                              onClick={() => setAddingNote({ ...addingNote, color: c })}
+                              style={{ background: c }}
+                              className={`w-5 h-5 rounded-full border ${
+                                addingNote.color === c ? "ring-2 ring-offset-1 ring-slate-500" : "border-slate-300"
+                              }`}
+                            />
+                          ))}
+                          <button onClick={saveNote} className="bg-emerald-600 text-white text-xs px-2 py-1 rounded ms-auto">
+                            שמור
+                          </button>
+                          <button onClick={() => setAddingNote(null)} className="text-slate-500 text-xs px-1">
+                            ביטול
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setAddingNote({ date: d.date, text: "", color: NOTE_COLORS[0] })}
+                        className="text-xs text-emerald-700 hover:underline no-print"
+                      >
+                        + הערה
+                      </button>
+                    )}
+                  </div>
+
+                  {hasSchedule && !d.closed && (
                     <div className="border-t border-slate-100">
                       <table className="w-full text-sm">
                         <tbody>
@@ -1020,8 +1095,6 @@ function ScheduleGrid({
               );
             })}
           </div>
-        </>
-      )}
 
       {fillDate && (
         <DayFillModal
