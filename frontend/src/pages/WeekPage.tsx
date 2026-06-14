@@ -77,19 +77,22 @@ export default function WeekPage() {
     setWeeks(w);
     return w;
   }
+  // open the ACTIVE week: this week's Sunday, or next Sunday if today is Saturday
+  function goToActiveWeek() {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    const dow = d.getDay(); // 0=Sun .. 6=Sat
+    d.setDate(d.getDate() + (dow === 6 ? 1 : -dow));
+    setYear(d.getFullYear());
+    setMonth(d.getMonth() + 1);
+    openWeek(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+  }
+
   useEffect(() => {
     (async () => {
       setStaff(await api.getStaff());
       await loadWeeks();
-      // open the ACTIVE week by default: this week's Sunday, or next Sunday if today is Saturday
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      const dow = d.getDay(); // 0=Sun .. 6=Sat
-      d.setDate(d.getDate() + (dow === 6 ? 1 : -dow));
-      const sun = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      setYear(d.getFullYear());
-      setMonth(d.getMonth() + 1);
-      openWeek(sun);
+      goToActiveWeek();
     })();
   }, []);
 
@@ -190,6 +193,13 @@ export default function WeekPage() {
             })}
           </select>
         </div>
+        <button
+          onClick={goToActiveWeek}
+          title="חזרה לשבוע הנוכחי"
+          className="border border-slate-300 hover:bg-slate-100 rounded-lg px-3 py-2 text-sm"
+        >
+          ↩ שבוע אקטיבי
+        </button>
         <div className="flex-1" />
         {selectedId && (
           <>
