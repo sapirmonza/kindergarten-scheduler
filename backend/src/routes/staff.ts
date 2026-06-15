@@ -33,8 +33,8 @@ router.post("/", (req, res) => {
   const b = req.body;
   const info = db
     .prepare(
-      `INSERT INTO staff (name, type, friday_mode, friday_anchor, morning_quota, afternoon_quota, days_per_week, active, notes)
-       VALUES (@name, @type, @friday_mode, @friday_anchor, @morning_quota, @afternoon_quota, @days_per_week, @active, @notes)`
+      `INSERT INTO staff (name, type, friday_mode, friday_anchor, morning_quota, afternoon_quota, days_per_week, birth_date, active, notes)
+       VALUES (@name, @type, @friday_mode, @friday_anchor, @morning_quota, @afternoon_quota, @days_per_week, @birth_date, @active, @notes)`
     )
     .run({
       name: b.name,
@@ -44,6 +44,7 @@ router.post("/", (req, res) => {
       morning_quota: b.morning_quota ?? 0,
       afternoon_quota: b.afternoon_quota ?? 0,
       days_per_week: b.days_per_week ?? null,
+      birth_date: b.birth_date ?? null,
       active: b.active === false ? 0 : 1,
       notes: b.notes ?? null,
     });
@@ -59,7 +60,7 @@ router.put("/:id", (req, res) => {
   db.prepare(
     `UPDATE staff SET name=@name, type=@type, friday_mode=@friday_mode, friday_anchor=@friday_anchor,
        morning_quota=@morning_quota, afternoon_quota=@afternoon_quota, days_per_week=@days_per_week,
-       active=@active, notes=@notes
+       birth_date=@birth_date, active=@active, notes=@notes
      WHERE id=@id`
   ).run({
     id,
@@ -70,6 +71,7 @@ router.put("/:id", (req, res) => {
     morning_quota: b.morning_quota ?? 0,
     afternoon_quota: b.afternoon_quota ?? 0,
     days_per_week: b.days_per_week ?? null,
+    birth_date: b.birth_date ?? null,
     active: b.active === false ? 0 : 1,
     notes: b.notes ?? null,
   });

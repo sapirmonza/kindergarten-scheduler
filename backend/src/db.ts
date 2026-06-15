@@ -48,6 +48,7 @@ export function ensureTables(): void {
       morning_quota   INTEGER NOT NULL DEFAULT 0,   -- managers: mornings per week (08:00-13:00)
       afternoon_quota INTEGER NOT NULL DEFAULT 0,   -- managers: afternoons per week (13:00-16:00)
       days_per_week   INTEGER,                       -- regulars: how many of her available days she works (null = all)
+      birth_date      TEXT,                           -- YYYY-MM-DD (for automatic birthday notes)
       active          INTEGER NOT NULL DEFAULT 1,
       notes           TEXT
     );
@@ -174,6 +175,9 @@ export function ensureTables(): void {
   const staffCols = db.prepare("PRAGMA table_info(staff)").all() as any[];
   if (!staffCols.some((c) => c.name === "days_per_week")) {
     db.exec("ALTER TABLE staff ADD COLUMN days_per_week INTEGER");
+  }
+  if (!staffCols.some((c) => c.name === "birth_date")) {
+    db.exec("ALTER TABLE staff ADD COLUMN birth_date TEXT");
   }
 
   // migration: add weeks.baseline (approval-time snapshot for extra/shortfall vs the plan)

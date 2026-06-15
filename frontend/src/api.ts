@@ -17,6 +17,7 @@ export type Staff = {
   morning_quota: number;
   afternoon_quota: number;
   days_per_week: number | null;
+  birth_date: string | null;
   active: boolean;
   notes: string | null;
   availability: Availability[];

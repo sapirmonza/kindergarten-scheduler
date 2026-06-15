@@ -16,6 +16,7 @@ const emptyStaff: Partial<Staff> = {
   morning_quota: 0,
   afternoon_quota: 0,
   days_per_week: null,
+  birth_date: null,
   active: true,
   notes: "",
   availability: [],
@@ -397,6 +398,17 @@ function StaffForm({
                 />
               </div>
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">תאריך לידה</label>
+            <input
+              type="date"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2"
+              value={f.birth_date || ""}
+              onChange={(e) => set({ birth_date: e.target.value || null })}
+            />
+            <p className="text-xs text-slate-400 mt-1">יוצג אוטומטית כפתק יום הולדת בלו"ז של אותו שבוע.</p>
           </div>
 
           <div>

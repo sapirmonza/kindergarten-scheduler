@@ -788,6 +788,27 @@ function ScheduleGrid({
     onChange();
   }
 
+  // automatic, non-deletable birthday notes from staff birth dates.
+  // A birthday falling on Saturday is surfaced on Friday with a "tomorrow" note.
+  function birthdayNotes(d: DayCoverage): string[] {
+    const out: string[] = [];
+    const check = (dateStr: string, tomorrowSat: boolean) => {
+      const mmdd = dateStr.slice(5);
+      const year = Number(dateStr.slice(0, 4));
+      for (const s of staff) {
+        if (!s.birth_date || s.birth_date.length < 10) continue;
+        if (s.birth_date.slice(5) === mmdd) {
+          const by = Number(s.birth_date.slice(0, 4));
+          const age = by ? ` ${year - by}` : "";
+          out.push(tomorrowSat ? `🎂 מחר (שבת) — יום הולדת${age} ל${s.name}` : `🎂 יום הולדת${age} ל${s.name}`);
+        }
+      }
+    };
+    check(d.date, false);
+    if (d.day_of_week === 5) check(addDaysISO(d.date, 1), true); // birthday on Saturday -> show on Friday
+    return out;
+  }
+
   function toggleExpand(date: string) {
     setExpanded((p) => {
       const n = new Set(p);
@@ -932,6 +953,15 @@ function ScheduleGrid({
 
                   {/* day notes — colored, survive schedule regeneration */}
                   <div className="px-3 py-2 border-t border-slate-100 space-y-1">
+                    {birthdayNotes(d).map((t, i) => (
+                      <div
+                        key={"bd" + i}
+                        style={{ background: "#fbcfe8" }}
+                        className="rounded px-2 py-1 text-sm font-bold text-pink-900"
+                      >
+                        {t}
+                      </div>
+                    ))}
                     {(notesByDate[d.date] || []).map((n) => (
                       <div
                         key={n.id}
