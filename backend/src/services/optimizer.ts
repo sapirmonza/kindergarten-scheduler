@@ -38,7 +38,9 @@ export type OptManager = {
   availMornings: string[];
   availAfternoons: string[];
 };
-export type OptInput = { days: OptDay[]; regulars: OptRegular[]; managers: OptManager[] };
+// "required" pre-placed shifts that ALWAYS appear and count toward coverage (strongest priority)
+export type OptForced = { staff_id: number; date: string; start: number; end: number; isManager: boolean };
+export type OptInput = { days: OptDay[]; regulars: OptRegular[]; managers: OptManager[]; forced: OptForced[] };
 
 export type OptShift = { staff_id: number; date: string; start: number; end: number };
 export type OptPlan = {
@@ -77,9 +79,11 @@ export function buildPlans(input: OptInput, k = 3, restarts = 10): OptPlan[] {
     let surplus = 0;
     let missingPresence = 0;
 
-    // gather, per date, the intervals present (regulars + managers)
+    // gather, per date, the intervals present (forced + regulars + managers)
     const byDate = new Map<string, { start: number; end: number; isManager: boolean }[]>();
     for (const d of input.days) byDate.set(d.date, []);
+
+    for (const f of input.forced) byDate.get(f.date)?.push({ start: f.start, end: f.end, isManager: f.isManager });
 
     for (const r of input.regulars) {
       const dates = sol.regDays.get(r.id) || [];
@@ -297,6 +301,8 @@ function solutionToShifts(
     if (s.slot === "morning") shifts.push({ staff_id: s.mid, date: s.date, start: d.morningStart, end: d.morningEnd });
     else shifts.push({ staff_id: s.mid, date: s.date, start: d.afternoonStart, end: d.afternoonEnd });
   }
+  // required pre-placed shifts always appear in the output
+  for (const f of input.forced) shifts.push({ staff_id: f.staff_id, date: f.date, start: f.start, end: f.end });
   return shifts;
 }
 

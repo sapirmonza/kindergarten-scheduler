@@ -44,7 +44,7 @@ router.get("/:id", (req, res) => {
 router.post("/:id/constraints", (req, res) => {
   const id = Number(req.params.id);
   const b = req.body;
-  const direction = b.direction === "available" ? "available" : "block";
+  const direction = ["available", "required"].includes(b.direction) ? b.direction : "block";
   const info = db
     .prepare(
       "INSERT INTO constraints (week_id, staff_id, date, direction, start_time, end_time, note) VALUES (?,?,?,?,?,?,?)"

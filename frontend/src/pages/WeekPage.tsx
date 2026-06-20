@@ -419,7 +419,7 @@ function ConstraintsPanel({
   const start = bundle.week.start_date;
   const [staffId, setStaffId] = useState<number | "">("");
   const [offset, setOffset] = useState(0);
-  const [direction, setDirection] = useState<"block" | "available">("block");
+  const [direction, setDirection] = useState<"block" | "available" | "required">("block");
   const [whole, setWhole] = useState(true); // regular: whole day
   const [from, setFrom] = useState("08:00");
   const [to, setTo] = useState("13:00");
@@ -455,7 +455,7 @@ function ConstraintsPanel({
   }
   const staffName = (id: number) => staff.find((s) => s.id === id)?.name || `#${id}`;
 
-  function dirBtn(value: "block" | "available", label: string, active: string) {
+  function dirBtn(value: "block" | "available" | "required", label: string, active: string) {
     return (
       <button
         onClick={() => setDirection(value)}
@@ -471,7 +471,9 @@ function ConstraintsPanel({
   return (
     <div className="bg-white rounded-xl border border-slate-200 p-4">
       <h3 className="font-bold">אילוצים וזמינות</h3>
-      <p className="text-xs text-slate-400 mb-3">מה אי אפשר (🚫) ומה אפשר (✅) — לכל אשת צוות, ביום ובשעות</p>
+      <p className="text-xs text-slate-400 mb-3">
+        🚫 לא זמינה · ✅ זמינה · 📌 חייבת (משובצת בוודאות) — לכל אשת צוות, ביום ובשעות
+      </p>
 
       <div className="flex flex-wrap items-center gap-2 mb-3">
         <select
@@ -503,6 +505,7 @@ function ConstraintsPanel({
           <>
             {dirBtn("block", "🚫 לא זמינה", "border-red-500 bg-red-50 text-red-700")}
             {dirBtn("available", "✅ זמינה", "border-emerald-500 bg-emerald-50 text-emerald-700")}
+            {dirBtn("required", "📌 חייבת", "border-purple-500 bg-purple-50 text-purple-700")}
             <select
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-sm"
               value={mgrScope}
@@ -518,6 +521,7 @@ function ConstraintsPanel({
           <>
             {dirBtn("block", "🚫 לא זמינה", "border-red-500 bg-red-50 text-red-700")}
             {dirBtn("available", "✅ זמינה", "border-emerald-500 bg-emerald-50 text-emerald-700")}
+            {dirBtn("required", "📌 חייבת", "border-purple-500 bg-purple-50 text-purple-700")}
             <label className="flex items-center gap-1 text-sm">
               <input type="checkbox" checked={whole} onChange={(e) => setWhole(e.target.checked)} />
               יום שלם
@@ -564,8 +568,16 @@ function ConstraintsPanel({
           {bundle.constraints.map((c) => (
             <li key={c.id} className="flex items-center justify-between py-1.5">
               <span>
-                <span className={c.direction === "available" ? "text-emerald-700" : "text-red-600"}>
-                  {c.direction === "available" ? "✅" : "🚫"}
+                <span
+                  className={
+                    c.direction === "available"
+                      ? "text-emerald-700"
+                      : c.direction === "required"
+                      ? "text-purple-700"
+                      : "text-red-600"
+                  }
+                >
+                  {c.direction === "available" ? "✅" : c.direction === "required" ? "📌" : "🚫"}
                 </span>{" "}
                 <b>{staffName(c.staff_id)}</b> · {DAY_NAMES[new Date(c.date + "T00:00:00Z").getUTCDay()]}{" "}
                 {formatDate(c.date)} · {c.start_time ? `${c.start_time}–${c.end_time}` : "יום שלם"}

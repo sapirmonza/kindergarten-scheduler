@@ -94,7 +94,7 @@ export function ensureTables(): void {
       week_id    INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
       staff_id   INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
       date       TEXT    NOT NULL,           -- YYYY-MM-DD
-      direction  TEXT    NOT NULL DEFAULT 'block' CHECK (direction IN ('block','available')),
+      direction  TEXT    NOT NULL DEFAULT 'block' CHECK (direction IN ('block','available','required')),
       start_time TEXT,                        -- null => whole day
       end_time   TEXT,
       note       TEXT
@@ -160,6 +160,30 @@ export function ensureTables(): void {
   const constraintCols = db.prepare("PRAGMA table_info(constraints)").all() as any[];
   if (!constraintCols.some((c) => c.name === "direction")) {
     db.exec("ALTER TABLE constraints ADD COLUMN direction TEXT NOT NULL DEFAULT 'block'");
+  }
+  // migration: widen the direction CHECK to allow 'required' (rebuild table if its CHECK lacks it)
+  const constrSql =
+    (db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='constraints'").get() as any)?.sql || "";
+  if (constrSql.includes("CHECK") && constrSql.includes("direction") && !constrSql.includes("required")) {
+    db.exec("PRAGMA foreign_keys=OFF");
+    db.exec(`
+      CREATE TABLE constraints_new (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        week_id    INTEGER NOT NULL REFERENCES weeks(id) ON DELETE CASCADE,
+        staff_id   INTEGER NOT NULL REFERENCES staff(id) ON DELETE CASCADE,
+        date       TEXT    NOT NULL,
+        direction  TEXT    NOT NULL DEFAULT 'block' CHECK (direction IN ('block','available','required')),
+        start_time TEXT,
+        end_time   TEXT,
+        note       TEXT
+      );
+      INSERT INTO constraints_new (id, week_id, staff_id, date, direction, start_time, end_time, note)
+        SELECT id, week_id, staff_id, date, direction, start_time, end_time, note FROM constraints;
+      DROP TABLE constraints;
+      ALTER TABLE constraints_new RENAME TO constraints;
+    `);
+    db.exec("PRAGMA foreign_keys=ON");
+    db.exec("CREATE INDEX IF NOT EXISTS idx_constr_week ON constraints(week_id)");
   }
 
   // migration: add per-day biweekly support to staff_availability

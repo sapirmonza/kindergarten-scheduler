@@ -174,8 +174,8 @@ function staffWindowsForDay(ctx: Ctx, staff: any, date: string, dayType: string)
     .filter((c) => c.date === date && c.start_time && c.end_time)
     .map((c) => ({ start: toMin(c.start_time), end: toMin(c.end_time) }));
 
-  // 'block' constraints REMOVE availability.
-  const blocks = myConstraints.filter((c) => c.direction !== "available");
+  // only 'block' constraints REMOVE availability ('available'/'required' do not).
+  const blocks = myConstraints.filter((c) => c.direction === "block");
   if (blocks.some((c) => !c.start_time && !c.end_time)) return []; // full-day block
   const partialBlocks: Window[] = blocks
     .filter((c) => c.start_time && c.end_time)
@@ -264,42 +264,78 @@ function buildOptInput(ctx: Ctx): OptInput {
   }
 
   const dtype = (date: string): "weekday" | "friday" => (dow(date) === 5 ? "friday" : "weekday");
+  const dayByDate = new Map(days.map((d) => [d.date, d]));
+
+  // --- "required" constraints -> forced pre-placed shifts (strongest priority) ---
+  const forced: OptInput["forced"] = [];
+  const forcedByStaff = new Map<number, { date: string; start: number; end: number }[]>();
+  for (const c of ctx.constraints) {
+    if (c.direction !== "required") continue;
+    const day = dayByDate.get(c.date);
+    if (!day) continue; // closed / non-working day
+    const staffRow = ctx.staff.find((s) => s.id === c.staff_id);
+    if (!staffRow) continue;
+    const openStart = Math.min(...day.segments.map((s) => s.start));
+    const openEnd = Math.max(...day.segments.map((s) => s.end));
+    const start = Math.max(c.start_time ? toMin(c.start_time) : openStart, openStart);
+    const end = Math.min(c.end_time ? toMin(c.end_time) : openEnd, openEnd);
+    if (end <= start) continue;
+    forced.push({ staff_id: c.staff_id, date: c.date, start, end, isManager: staffRow.type === "manager" });
+    (forcedByStaff.get(c.staff_id) ?? forcedByStaff.set(c.staff_id, []).get(c.staff_id)!).push({ date: c.date, start, end });
+  }
 
   const regulars: OptRegular[] = [];
   for (const r of ctx.staff.filter((s) => s.type === "regular")) {
-    const avail: { date: string; start: number; end: number }[] = [];
+    const allAvail: { date: string; start: number; end: number }[] = [];
     for (const d of days) {
       const windows = staffWindowsForDay(ctx, r, d.date, dtype(d.date));
       if (!windows.length) continue;
-      // represent her presence that day by her longest available window
-      const w = windows.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a));
-      avail.push({ date: d.date, start: w.start, end: w.end });
+      const w = windows.reduce((a, b) => (b.end - b.start > a.end - a.start ? b : a)); // longest window
+      allAvail.push({ date: d.date, start: w.start, end: w.end });
     }
-    if (!avail.length) continue;
-    const target = r.days_per_week != null ? r.days_per_week : avail.length;
+    const forcedDates = new Set((forcedByStaff.get(r.id) || []).map((f) => f.date));
+    const avail = allAvail.filter((a) => !forcedDates.has(a.date)); // forced days are guaranteed, not chosen
+    if (!avail.length && !forcedDates.size) continue;
+    const baseTarget = r.days_per_week != null ? r.days_per_week : allAvail.length;
+    const forcedWithinAvail = allAvail.filter((a) => forcedDates.has(a.date)).length;
+    const target = Math.max(0, baseTarget - forcedWithinAvail);
     regulars.push({ id: r.id, target, avail });
   }
 
   const managers: OptManager[] = [];
   for (const m of ctx.staff.filter((s) => s.type === "manager")) {
+    const myForced = forcedByStaff.get(m.id) || [];
+    const forcedMorn = new Set<string>();
+    const forcedAft = new Set<string>();
+    for (const f of myForced) {
+      const day = dayByDate.get(f.date);
+      if (!day) continue;
+      if (f.start < day.morningEnd && f.end > day.morningStart) forcedMorn.add(f.date);
+      if (day.hasAfternoon && f.start < day.afternoonEnd && f.end > day.afternoonStart) forcedAft.add(f.date);
+    }
     const availMornings: string[] = [];
     const availAfternoons: string[] = [];
     for (const d of days) {
       const windows = staffWindowsForDay(ctx, m, d.date, dtype(d.date));
-      if (windows.some((w) => w.start <= d.morningStart && w.end >= d.morningEnd)) availMornings.push(d.date);
-      if (d.hasAfternoon && windows.some((w) => w.start <= d.afternoonStart && w.end >= d.afternoonEnd))
+      if (!forcedMorn.has(d.date) && windows.some((w) => w.start <= d.morningStart && w.end >= d.morningEnd))
+        availMornings.push(d.date);
+      if (
+        d.hasAfternoon &&
+        !forcedAft.has(d.date) &&
+        windows.some((w) => w.start <= d.afternoonStart && w.end >= d.afternoonEnd)
+      )
         availAfternoons.push(d.date);
     }
     managers.push({
       id: m.id,
-      morningQuota: m.morning_quota,
-      afternoonQuota: m.afternoon_quota,
+      morningQuota: Math.max(0, m.morning_quota - forcedMorn.size),
+      afternoonQuota: Math.max(0, m.afternoon_quota - forcedAft.size),
       availMornings,
       availAfternoons,
     });
   }
 
-  return { days, regulars, managers };
+  return { days, regulars, managers, forced };
 }
 
 export type GeneratedPlan = {
@@ -463,9 +499,9 @@ export function suggestReplacements(
 
   const out: (Replacement & { _rank: number })[] = [];
   for (const s of ctx.staff) {
-    // 'block' constraints that day apply to everyone (incl. managers); 'available' never blocks
+    // only 'block' constraints that day block a candidate ('available'/'required' do not)
     const myBlocks = ctx.constraints.filter(
-      (c) => c.staff_id === s.id && c.date === date && c.direction !== "available"
+      (c) => c.staff_id === s.id && c.date === date && c.direction === "block"
     );
     if (myBlocks.some((c) => !c.start_time && !c.end_time)) continue; // full-day off
     const blockedWindow = myBlocks.some(

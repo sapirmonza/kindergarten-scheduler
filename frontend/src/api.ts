@@ -83,7 +83,7 @@ export type Constraint = {
   id: number;
   staff_id: number;
   date: string;
-  direction: "block" | "available";
+  direction: "block" | "available" | "required";
   start_time: string | null;
   end_time: string | null;
   note: string | null;
