@@ -123,9 +123,12 @@ function intersect(a: Window, b: Window): Window | null {
 }
 
 // Biweekly Friday parity: is `friday` an "on" week relative to the anchor?
-function biweeklyOn(anchor: string | null, friday: string): boolean {
+function biweeklyOn(anchor: string | null, date: string): boolean {
   if (!anchor) return true; // no anchor set -> assume on
-  const weeks = Math.round(daysBetween(anchor, friday) / 7);
+  // Compare by WEEK (normalize both to their week's Sunday) so parity is correct regardless of
+  // which weekday the anchor falls on — the user may pick any day within "the week she works".
+  const sundayOfISO = (iso: string) => addDays(iso, -dow(iso));
+  const weeks = Math.round(daysBetween(sundayOfISO(anchor), sundayOfISO(date)) / 7);
   return weeks % 2 === 0;
 }
 
